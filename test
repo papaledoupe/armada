@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -eu
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LUA_PATH="$BASE_DIR/source/?;$BASE_DIR/source/?.lua"
+
+LUA_PATH="$LUA_PATH" lua "$BASE_DIR/source/tests/suite.lua" "$@"

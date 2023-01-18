@@ -1,0 +1,9 @@
+main {
+  "value: {my.accessor}"
+  set my.accessor 1
+  "value: {my.accessor}"
+  set my.accessor true
+  "value: {my.accessor}"
+  set my.accessor "str"
+  "value: {my.accessor}"
+}

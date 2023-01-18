@@ -1,0 +1,3 @@
+main {
+  call my.func param1=4 param2="str" param3=false param4=my.value
+}

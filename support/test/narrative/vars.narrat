@@ -1,0 +1,8 @@
+main {
+  if character.strength >= 4 {
+    "You're so strong!"
+  }
+  if character.strength < 4 {
+    "You're a weakling!"
+  }
+}

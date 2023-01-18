@@ -1,0 +1,15 @@
+game {
+  choice "Heads or tails?" {
+    "heads" {
+      "You chose heads."
+    }
+    "tails" {
+      "You choise tails."
+    }
+  }
+}
+
+main {
+  "Welcome to the game."
+  jump game
+}

@@ -1,0 +1,8 @@
+name=decree
+author=Lodenstone
+description=It's not done yet.
+bundleID=org.lodenstone.decree
+version=1.0
+buildNumber=1
+#imagePath=path/to/launcher/assets
+#launchSoundPath=path/to/launch/sound/file

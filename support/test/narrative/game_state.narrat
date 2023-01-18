@@ -1,0 +1,21 @@
+ main {
+    if script.testcase == "turnNumberIsImmutable" {
+        jump turnNumberIsImmutable
+    } else if script.testcase == "phaseIsImmutable" {
+        jump phaseIsImmutable
+    } else {
+        error "unknown test case: {script.testcase}"
+    }
+}
+
+turnNumberIsImmutable {
+    "Turn number: {game.turn}"
+    set game.turn 100
+    "Turn number: {game.turn}"
+}
+
+phaseIsImmutable {
+    "Phase: {game.phase}"
+    set game.phase "something"
+    "Phase: {game.phase}"
+}

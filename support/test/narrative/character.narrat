@@ -1,0 +1,40 @@
+main {
+    if script.testcase == "characterNameIsImmutable" {
+        jump characterNameIsImmutable
+    } else if script.testcase == "backgroundCanBeMutated" {
+        jump backgroundCanBeMutated
+    } else if script.testcase == "beliefCanBeMutated" {
+        jump beliefCanBeMutated
+    } else if script.testcase == "credits" {
+        jump credits
+    } else {
+        error "unknown test case: {script.testcase}"
+    }
+}
+
+characterNameIsImmutable {
+    "Character name: {character.name}"
+    set character.name "it's immutable"
+    "Character name: {character.name}"   
+}
+
+backgroundCanBeMutated {
+    "Background: {character.background}"
+    set character.background "suit"
+    "Background: {character.background}"
+    set character.background "notathing"
+}
+
+beliefCanBeMutated {
+    "Belief: {character.belief}"
+    set character.belief "capitalist"
+    "Belief: {character.belief}"
+    set character.belief "notathing"
+}
+
+credits {
+    "balance = {character.credits}"
+    add character.credits 20
+    "balance = {character.credits}"
+    add character.credits -200
+}

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+
+CMD="${1:-compile}"
+shift
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $@"
+}
+
+generate() {
+    log "generate starting"
+    "$BASE_DIR/generate" "$@"
+    if [[ "$?" -eq 0 ]] ; then
+        log "generate OK"
+    else
+        log "generate ERROR" >>/dev/stderr
+    fi
+}
+
+compile() {
+    log "compile starting"
+    "$BASE_DIR/compile" "$@"
+    if [[ "$?" -eq 0 ]] ; then
+        log "compile OK"
+    else
+        log "compile ERROR" >>/dev/stderr
+    fi
+}
+
+test() {
+    "$BASE_DIR/test" "$@"
+}
+
+daemon() {
+    local cmd="$1"; shift
+    local sourceChecksum1=""
+    local supportChecksum1=""
+    while [[ true ]];  do
+        local supportChecksum2="$(find "$BASE_DIR/support/" -type f -exec md5 {} \;)"
+        if [[ $supportChecksum1 != $supportChecksum2 ]] ; then           
+            if [ -n "$supportChecksum1" ]; then
+                log "changes to support detected"
+                if [ "$cmd" = "test" ]; then
+                    generate test
+                fi
+                generate
+            fi
+            supportChecksum1=$supportChecksum2
+        fi
+        local sourceChecksum2="$(find "$BASE_DIR/source/" -type f -exec md5 {} \;)"
+        if [[ $sourceChecksum1 != $sourceChecksum2 ]] ; then           
+            if [ -n "$sourceChecksum1" ]; then
+                log "changes to source detected"
+                "$cmd" "$@"
+            fi
+            sourceChecksum1=$sourceChecksum2
+        fi
+        sleep 2
+    done
+}
+
+if ! [ "$CMD" = "compile" ] && ! [ "$CMD" = "test" ] && ! [ "$CMD" = "generate" ]; then
+    log "unsupported command: $CMD" >>/dev/stderr
+    exit 1
+fi
+
+"$CMD" "$@"
+daemon "$CMD" "$@"

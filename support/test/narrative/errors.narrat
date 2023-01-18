@@ -1,0 +1,5 @@
+main {
+  if number > 2 {
+    error "number was greater than 2 ({number})"
+  }
+}

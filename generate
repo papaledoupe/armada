@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -eu
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NARRAT_COMPILER_PATH=/Users/matt/Workspace/norrat/lua-compiler
+
+if [ "${1:-}" = "test" ]; 
+    then npm --prefix "$NARRAT_COMPILER_PATH" run compiler "$BASE_DIR/support/test/narrative" "$BASE_DIR/source/tests/engine/narrative"
+    else npm --prefix "$NARRAT_COMPILER_PATH" run compiler "$BASE_DIR/support/narrative" "$BASE_DIR/source/narratives"
+fi
