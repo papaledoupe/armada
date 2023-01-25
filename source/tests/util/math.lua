@@ -67,4 +67,36 @@ TestMathUtils = {
         lu.assertNotEquals(util.math.pair(4, 5), util.math.pair(5, 4))
         lu.assertNotEquals(util.math.pair(4, 5), util.math.pair(-4, -5))
     end,
+
+    testRound = function()
+        lu.assertEquals(util.math.round(1), 1)
+        lu.assertEquals(util.math.round(1.1), 1)
+        lu.assertEquals(util.math.round(1.4), 1)
+        lu.assertEquals(util.math.round(1.5 - 1e-10), 1)
+        lu.assertEquals(util.math.round(1.5), 2)
+        lu.assertEquals(util.math.round(0.9), 1)
+        lu.assertEquals(util.math.round(0.5), 1)
+        lu.assertEquals(util.math.round(0.5 - 1e-10), 0)
+    end,
+
+    testRotate2d = function()
+        -- awkward because luaunit has no "approximately equals"
+        -- so just using silly big number + rounding
+
+        local x, y = util.math.rotate2D(1e10, 1e10, math.pi)
+        lu.assertEquals(util.math.round(x), -1e10)
+        lu.assertEquals(util.math.round(y), -1e10)
+
+        x, y = util.math.rotate2D(1e10, 1e10, math.pi/2)
+        lu.assertEquals(util.math.round(x), -1e10)
+        lu.assertEquals(util.math.round(y), 1e10)
+
+        x, y = util.math.rotate2D(1e10, 1e10, 3*math.pi/2)
+        lu.assertEquals(util.math.round(x), 1e10)
+        lu.assertEquals(util.math.round(y), -1e10)
+
+        x, y = util.math.rotate2D(1e10, 3e10, math.pi)
+        lu.assertEquals(util.math.round(x), -1e10)
+        lu.assertEquals(util.math.round(y), -3e10)
+    end,
 }

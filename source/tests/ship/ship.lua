@@ -1,22 +1,13 @@
 local lu <const> = import 'lib/luaunit/luaunit'
 import 'ship/ship'
+import 'tests/support/class_mock'
+local classMock <const> = testSupport.classMock
 
 local function exampleShip(args)
     args = args or {}
     args.stats = args.stats or ShipStats:example()
     return Ship.new(args)
 end
-
-TestShipStats = {
-
-    testMaxVelocityChange = function()
-        lu.assertEquals(ShipStats:example().maxVelocityChange, 10)
-    end,
-
-    testMaxBearingChange = function()
-        lu.assertEquals(ShipStats:example().maxBearingChange, 360/4)
-    end,
-}
 
 TestShip = {
 
@@ -157,59 +148,30 @@ TestShip = {
             lu.assertEquals(ship.movement.y, proj[i].y)
         end
     end,
-}
 
-TestSteerCommand = {
+    testGetSponsonPositionIsTransformedByShipPosition = function()
+        local ship = exampleShip{
+            sponsons = {classMock('SponsonWeapon', {mountPosX = 10, mountPosY = -10})},
+            x = 100,
+            y = 100,
+            bearing = 0,
+        }
 
-    testAllowableRange = function()
-        local cmd = SteerCommand.new{ship = exampleShip{bearing = 30}}
-        local min, max = cmd:getTargetBearingRange()
-
-        lu.assertEquals(min, -60)
-        lu.assertEquals(max, 120)
+        local x, y = ship:getSponsonPosition(1)
+        lu.assertEquals(x, 110)
+        lu.assertEquals(y, 90)
     end,
 
-}
+    testGetSponsonPositionIsTransformedByShipBearing = function()
+        local ship = exampleShip{
+            sponsons = {classMock('SponsonWeapon', {mountPosX = 10, mountPosY = -10})},
+            x = 0,
+            y = 0,
+            bearing = 90,
+        }
 
-TestAccelerateCommand = {
-    testRange = function()
-        local ship = exampleShip{velocity = 0}
-        local cmd = AccelerateCommand.new{ship = ship}
-        local min, max = cmd:getTargetVelocityRange()
-
-        lu.assertEquals(min, 0)
-        lu.assertEquals(max, ship.stats.maxVelocityChange)
-    end,
-
-    testCannotExceedMaxSpeed = function()
-        local v0 = ShipStats:example().maxForwardVelocity - 1
-        local ship = exampleShip{velocity = v0}
-        local cmd = AccelerateCommand.new{ship = ship}
-        local min, max = cmd:getTargetVelocityRange()
-
-        lu.assertEquals(min, v0)
-        lu.assertEquals(max, ship.stats.maxForwardVelocity)
-    end,
-}
-
-TestDecelerateCommand = {
-    testRange = function()
-        local v0 = 5
-        local ship = exampleShip{velocity = v0}
-        local cmd = DecelerateCommand.new{ship = ship}
-        local min, max = cmd:getTargetVelocityRange()
-
-        lu.assertEquals(min, v0-ship.stats.maxVelocityChange)
-        lu.assertEquals(max, v0)
-    end,
-
-    testCannotExceedMaxSpeed = function()
-        local v0 = 1 - ShipStats:example().maxBackwardVelocity
-        local ship = exampleShip{velocity = v0}
-        local cmd = DecelerateCommand.new{ship = ship}
-        local min, max = cmd:getTargetVelocityRange()
-
-        lu.assertEquals(min, -ship.stats.maxBackwardVelocity)
-        lu.assertEquals(max, v0)
+        local x, y = ship:getSponsonPosition(1)
+        lu.assertEquals(x, 10)
+        lu.assertEquals(y, 10)
     end,
 }

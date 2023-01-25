@@ -75,6 +75,10 @@ util.math = {
         end
     end,
 
+    round = function(n)
+        return math.floor(n + 0.5)
+    end,
+
     -- bijective {Z, Z} => Z mapping (Z integer)
     -- essentially a cantor function with an additional mapping to support negative integers
     pair = function(a, b)
@@ -91,5 +95,11 @@ util.math = {
         local b = n - t
         local a = w - b
         return util.math.NtoZ(a), util.math.NtoZ(b)
+    end,
+
+    -- rotate the point (x, y) clockwise around (0, 0) by rad radians
+    rotate2D = function(x, y, rad)
+        return x * math.cos(rad) - y * math.sin(rad),
+               x * math.sin(rad) + y * math.cos(rad)
     end,
 }

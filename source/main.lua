@@ -13,6 +13,15 @@ local game = GameState.new{
             y = 100,
             bearing = 45,
             velocity = 20,
+            sponsons = {
+                SponsonWeapon.new{
+                    minOrientation = -45,
+                    maxOrientation = 45,
+                    spread = 45,
+                    range = 50,
+                    mountPosY = -20,
+                },
+            },
         },
         Ship.new{
             stats = ShipStats:example(),

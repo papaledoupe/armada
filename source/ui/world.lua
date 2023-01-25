@@ -43,7 +43,7 @@ class "WorldUI" extends "UILifecycle" {
             local game = self.game
             local controller = self.controller
             self.fsm = FiniteStateMachine.new{
-                log = true,
+                --log = true,
                 start = 'CHOOSE_COMMAND',
                 transitions = {
                     StateTransition.new{
@@ -92,6 +92,16 @@ class "WorldUI" extends "UILifecycle" {
                     StateTransition.new{
                         from = 'DECELERATE_INPUT',
                         event = 'decelerateInputGiven',
+                        to = 'SIMULATING',
+                    },
+                    StateTransition.new{
+                        from = 'SIMULATING',
+                        event = 'aimInputRequired',
+                        to = 'AIM_INPUT',
+                    },
+                    StateTransition.new{
+                        from = 'AIM_INPUT',
+                        event = 'aimInputGiven',
                         to = 'SIMULATING',
                     },
                     StateTransition.new{
@@ -287,6 +297,43 @@ class "WorldUI" extends "UILifecycle" {
                             self:clearProjection()
                         end,
                     },
+                    ['AIM_INPUT'] = {
+                        enter = function(fsm)
+                            local ship = self:getActiveShip()
+                            local cmd = typeGuard('AimCommand', ship:currentCommand())
+                            local min, max = cmd:getOrientationRange()
+                            local args = {target = cmd:getCurrentOrientation()}
+                            local aimX, aimY = cmd:getFrom()
+                            local aimFrom = v(aimX - ship.movement.x, aimY - ship.movement.y)
+
+                            controller:getOverlay():enable{
+                                OverlayUIAction.new{
+                                    label = 'Rotate',
+                                    button = 'crank',
+                                    callback = function(_, _, crank)
+                                        args.target = clamp(
+                                            args.target + crank.change * bearingChangePerCrankDegree,
+                                            min,
+                                            max
+                                        )
+                                        self:renderAim(aimFrom, args.target, cmd:getRange(), cmd:getSpread())
+                                    end,
+                                },
+                                OverlayUIAction.new{
+                                    label = 'Confirm',
+                                    button = 'a',
+                                    callback = function()
+                                        self:setNextCommandArgs(args)
+                                        fsm:mustTrigger('aimInputGiven')
+                                    end,
+                                }
+                            }
+                        end,
+                        leave = function()
+                            controller:getOverlay():disable()
+                            self:clearProjection()
+                        end,
+                    },
                 },
             }
         end,
@@ -400,6 +447,17 @@ class "WorldUI" extends "UILifecycle" {
             self.shipProjectionImg = nil
         end,
 
+        renderAim = function(self, from, orientation, range, spread)
+            self.shipProjectionImg = util.gfx.withImageContext(gfx.image.new(playdateScreenW*2, playdateScreenH*2), function(g)
+                util.gfx.withDrawOffset(playdateScreenW + from.x, playdateScreenH + from.y, function(g)
+                    local min, max = orientation - spread/2, orientation + spread/2
+                    g.drawArc(0, 0, range, min, max)
+                    g.drawLine(0, 0, range * math.sin(math.rad(min)), -range * math.cos(math.rad(min)))
+                    g.drawLine(0, 0, range * math.sin(math.rad(max)), -range * math.cos(math.rad(max)))
+                end)
+            end)
+        end,
+
         renderProjection = function(self, ship, targetVelocity, targetBearing)
             local stepsPerMeter = 0.1
             local dotRadius = 2
@@ -461,6 +519,8 @@ class "WorldUI" extends "UILifecycle" {
                 self.fsm:mustTrigger('accelerateInputRequired')
             elseif instanceOf('DecelerateCommand', requiredCommand) then
                 self.fsm:mustTrigger('decelerateInputRequired')
+            elseif instanceOf('AimCommand', requiredCommand) then
+                self.fsm:mustTrigger('aimInputRequired')
             else
                 error('unimplemented command type: '..requiredCommand:getType()) 
             end
@@ -508,12 +568,14 @@ class "CommandWidget" {
                 self:close()
             end
             self.ship = ship
+            self.cmds = ship:availableCommands()
             self.selectedIndex = math.min(self.selectedIndex, #ship:availableCommands())
             self.scroll = self.selectedIndex
         end,
 
         close = function(self)
             self.ship = nil
+            self.cmds = {}
             self.taskQueue:cancelAll()
         end,
 
@@ -557,6 +619,7 @@ class "CommandWidget" {
             selectedIndex = 1,
         },
         ship = null, -- Ship|nil
+        cmds = {}, -- ShipCommand[] cached as ship:availableCommands() expensive to call every frame
         taskQueue = null, -- TaskQueue
         scroll = 1, -- non-integer, in index units (i.e. 1.5 is half way between first and second option)
 
@@ -568,13 +631,13 @@ class "CommandWidget" {
             local imgH = playdateScreenH/2
             
             return util.gfx.withImageContext(gfx.image.new(imgW, imgH), function(g)
-                local drawBox = function(cmd, offsetX, offsetY)
+                local drawBox = function(cmdT, offsetX, offsetY)
                     util.gfx.withColor(g.kColorWhite, function(g)
                         g.fillRoundRect(offsetX, offsetY, CommandWidget.boxSize, CommandWidget.boxSize, CommandWidget.boxRadius)
                     end)
                     g.drawRoundRect(offsetX, offsetY, CommandWidget.boxSize, CommandWidget.boxSize, CommandWidget.boxRadius)
-                    if cmd ~= nil then
-                        CommandWidget:icons()[cmd:getType()]:drawCentered(offsetX + CommandWidget.boxSize/2, offsetY + CommandWidget.boxSize/2)
+                    if cmdT ~= nil then
+                        CommandWidget:icons()[cmdT]:drawCentered(offsetX + CommandWidget.boxSize/2, offsetY + CommandWidget.boxSize/2)
                     end
                 end
 
@@ -585,14 +648,15 @@ class "CommandWidget" {
                     return imgH - CommandWidget.distanceFromCenterY - boxSpacing*row
                 end
                 if self.ship:needsCommand() then
-                    for idx, cmd in ipairs(self.ship:availableCommands()) do
+                    for idx, cmd in ipairs(self.cmds) do
                         local offsetX = centerX + (idx - self.scroll) * boxSpacing
-                        drawBox(cmd, offsetX, rowOffsetY())
+                        drawBox(cmd:getType(), offsetX, rowOffsetY())
                     end
                     row += 1
                 end
                 for i = self.ship.stats.inertia - (self.ship:needsCommand() and 1 or 0), 1, -1 do
-                    drawBox(self.ship.commands[i], centerX, rowOffsetY())
+                    local cmd = self.ship.commands[i]
+                    drawBox(cmd ~= nil and cmd:getType() or nil, centerX, rowOffsetY())
                     row += 1
                 end
             end)
@@ -601,7 +665,7 @@ class "CommandWidget" {
             for _, cmd in ipairs(self.ship.commands) do
                 cmdTypes = cmdTypes .. '.' .. cmd:getType()
             end
-            return {self.selectedIndex, self.scroll, cmdTypes, self:isOpen()}
+            return {self.selectedIndex, self.scroll, ship, self:isOpen()}
         end})
     }
 }

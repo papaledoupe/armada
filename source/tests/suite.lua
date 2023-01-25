@@ -15,6 +15,9 @@ local allTests <const> = {
     'util/memo',
     'game/state',
     'ship/ship',
+    'ship/stats',
+    'ship/command',
+    'ship/weapons',
 }
 
 -- playdate SDK uses import over require which is an optimization for the playdate platform
