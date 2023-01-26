@@ -62,4 +62,13 @@ TestTableUtils = {
         lu.assertEquals(out, {3, 4})
     end,
 
+    testShuffle = function()
+        local mockRandom = function(i) return math.floor(i/2) end
+        local table = {'a', 'b', 'c', 'd', 'e'}
+
+        util.table.shuffle(table, mockRandom)
+
+        lu.assertEquals(table, {'a', 'd', 'b', 'e', 'c'})
+    end,
+
 }

@@ -32,8 +32,19 @@ local game = GameState.new{
         },
     }
 }
-local ui = UIStackController.new{game = game}
+-- local ui = UIStackController.new{game = game}
 
+-- TEMP
+import 'ui/damage'
+local overlay = OverlayUI.new{game = game}
+local ui = DamageCheckUI.new{
+    overlay = overlay,
+    check = DamageCheck.new{maxDamage = 10},
+    onComplete = function(check)
+        print('score ', check.score, 'damage', check:currentDamage())
+    end,
+}
+-- TEMP END
 
 function playdate.update()
     gfx.clear(gfx.kColorWhite)
@@ -42,4 +53,5 @@ function playdate.update()
     playdate.timer.updateTimers()
  
     ui:update()
+    overlay:update()
 end

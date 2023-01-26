@@ -249,9 +249,9 @@ class "OverlayGameInfo" {
         end,
 
         update = function(self)
-            if not self.hidden then
-                self:render():draw(0, 0)
-            end
+            -- if not self.hidden then
+            --     self:render():draw(0, 0)
+            -- end
         end,
 
         setHidden = function(self, hidden)
@@ -642,7 +642,7 @@ class "OverlayUI" {
         end,
 
         disable = function(self)
-            self.fsm:mustTrigger('disable')
+            self.fsm:trigger('disable')
         end,
 
         -- convenience version of :enable to easily connect standard menu controls

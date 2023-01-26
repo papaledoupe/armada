@@ -51,5 +51,14 @@ util.table = {
       return proxy
     end,
 
+    -- in-place Fisher-Yates shuffle
+    shuffle = function(tbl, rand)
+        rand = rand or math.random
+        for i = #tbl, 2, -1 do
+            local j = rand(i) + 1
+            tbl[i], tbl[j] = tbl[j], tbl[i]
+        end
+        return tbl
+    end,
 }
 
