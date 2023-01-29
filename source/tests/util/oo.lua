@@ -168,6 +168,35 @@ TestTypeGuard = {
         end
     end,
 
+    testTypeGuardKeysValuesSucceeds = function()
+        for _, testCase in pairs{
+            { 'string', 'string', {} },
+            { 'string', 'string', {foo = 'a', bar = 'b'} },
+            { 'string', 'boolean', {foo = true, ['bar'] = false} },
+            { 'number', 'number', {1, 2, 3}},
+            { 'number', 'number', {[1] = 2, [4] = 6}},
+            { 'table', 'number', {[{1}] = 2, [{2}] = 6}},
+            { 'number', 'Foo', {Foo.new(), Baz.new()} },
+        } do 
+            local keyT, valueT, tbl = table.unpack(testCase)
+            lu.assertEquals(oo.typeGuardKeysValues(keyT, valueT, tbl), tbl)
+        end
+    end,
+
+    testTypeGuardKeysValuesFails = function()
+        for _, testCase in pairs{
+            { 'string', 'string', {1} },
+            { 'string', 'string', {foo = 'a', bar = 2} },
+            { 'string', 'boolean', {foo = true, ['bar'] = 'false'} },
+            { 'number', 'number', {1, 2, '3'}},
+            { 'number', 'Foo', {Foo.new(), Bar.new()} },
+        } do 
+            local keyT, valueT, tbl = table.unpack(testCase)
+            lu.assertError(function() 
+                oo.typeGuardKeysValues(keyT, valueT, tbl)
+            end)
+        end
+    end,
 }
 
 oo.valueobject "MyValue" {

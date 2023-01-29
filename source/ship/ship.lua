@@ -4,6 +4,7 @@ local typeGuardElements <const> = util.oo.typeGuardElements
 import 'util/string'
 import 'util/math'
 local rotate2D <const> = util.math.rotate2D
+local lineAngle <const> = util.math.lineAngle
 import 'util/task'
 import 'ship/stats'
 import 'ship/movement'
@@ -134,6 +135,28 @@ class "Ship" {
             return false
         end,
 
+        getSponsonsInRangeOf = function(self, x, y)
+            local sponsons = {}
+            for i, sponson in ipairs(self.sponsons) do
+                local sponsonX, sponsonY = self:getSponsonPosition(i)
+                local distX = x - sponsonX
+                local distY = y - sponsonY
+
+                if math.abs(distX) <= sponson:getMaxRange() 
+                    and math.abs(distY) <= sponson:getMaxRange()
+                    and math.sqrt(distX*distX + distY*distY) <= sponson:getMaxRange() then
+                    -- basic culling checks passed before doing proper maths
+
+                    local arcMin, arcMax = self:getSponsonCurrentSpread(i)
+                    local angle = math.deg(lineAngle(distX, distY))
+                    if angle >= arcMin and angle <= arcMax then
+                        table.insert(sponsons, sponson)
+                    end
+                end
+            end
+            return sponsons
+        end,
+
         getSponson = function(self, idx)
             return self.sponsons[idx]
         end,
@@ -145,6 +168,15 @@ class "Ship" {
             end
             local rx, ry = rotate2D(sponson.mountPosX, sponson.mountPosY, math.rad(self.movement.bearing))
             return self.movement.x + rx, self.movement.y + ry
+        end,
+
+        getSponsonCurrentSpread = function(self, idx)
+            local sponson = self.sponsons[idx]
+            if sponson == nil then
+                return 0, 0
+            end
+            local min, max = sponson:getCurrentSpread()
+            return min + self.movement.bearing, max + self.movement.bearing
         end,
 
         getSponsonOrientationRange = function(self, idx)

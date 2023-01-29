@@ -102,4 +102,42 @@ util.math = {
         return x * math.cos(rad) - y * math.sin(rad),
                x * math.sin(rad) + y * math.cos(rad)
     end,
+
+    -- returns CW angle from in radians of line from point 1 to 2
+    -- (or point 1 from origin if point 2 not provided)
+    -- note: in game geometric system, i.e. positive y is down but angles are given relative to negative y ("north")
+    lineAngle = function(x1, y1, x2, y2)
+        if type(x1) ~= 'number' or type(y1) ~= 'number' then
+            error('x1 and y1 must be supplied as numbers')
+        end
+        local dx, dy
+        if x2 == nil and y2 == nil then
+            dx, dy = x1, y1
+        else
+            if type(x2) ~= 'number' or type(y2) ~= 'number' then
+                error('x2 and y2 must be supplied as numbers')
+            end
+            dx, dy = x2 - x1, y2 - y1
+        end
+        local refAngle = math.abs(math.atan(dy/dx))
+        if dx == 0 then
+            if dy <= 0 then
+                return 0
+            elseif dy > 0 then
+                return math.pi
+            end
+        elseif dx > 0 then
+            if dy >= 0 then
+                return math.pi/2 + refAngle
+            else
+                return refAngle
+            end
+        else
+            if dy <= 0 then
+                return 3*math.pi/2 + refAngle
+            else
+                return math.pi + refAngle
+            end
+        end
+    end,
 }

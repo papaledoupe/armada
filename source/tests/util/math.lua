@@ -99,4 +99,43 @@ TestMathUtils = {
         lu.assertEquals(util.math.round(x), -1e10)
         lu.assertEquals(util.math.round(y), -3e10)
     end,
+
+    testLineAngleWithTwoPoints = function()
+        -- compass dirs
+        lu.assertEquals(util.math.lineAngle(1,1, 1,1), 0)
+        lu.assertEquals(util.math.lineAngle(1,1, 2,1), math.pi/2)
+        lu.assertEquals(util.math.lineAngle(1,1, 1,2), math.pi)
+        lu.assertEquals(util.math.lineAngle(1,1, 0,1), 3*math.pi/2)
+        lu.assertEquals(util.math.lineAngle(1,1, 1,0), 0)
+
+        -- diagonals
+        lu.assertEquals(util.math.lineAngle(1, 1, 2, 0), math.pi/4)
+        lu.assertEquals(util.math.lineAngle(1, 1, 2, 2), 3*math.pi/4)
+        lu.assertEquals(util.math.lineAngle(1, 1, 0, 2), 5*math.pi/4)
+        lu.assertEquals(util.math.lineAngle(1, 1, 0, 0), 7*math.pi/4)
+    end,
+
+    testLineAngleWithOnePoint = function()
+        -- compass dirs
+        lu.assertEquals(util.math.lineAngle(0, 0), 0)
+        lu.assertEquals(util.math.lineAngle(1, 0), math.pi/2)
+        lu.assertEquals(util.math.lineAngle(0, 1), math.pi)
+        lu.assertEquals(util.math.lineAngle(-1, 0), 3*math.pi/2)
+        lu.assertEquals(util.math.lineAngle(0, -1), 0)
+
+        -- diagonals
+        lu.assertEquals(util.math.lineAngle(1, -1), math.pi/4)
+        lu.assertEquals(util.math.lineAngle(1, 1), 3*math.pi/4)
+        lu.assertEquals(util.math.lineAngle(-1, 1), 5*math.pi/4)
+        lu.assertEquals(util.math.lineAngle(-1, -1), 7*math.pi/4)
+    end,
+
+    testLineAngleWithBadArgs = function()
+        lu.assertError(function() util.math.lineAngle() end)
+        lu.assertError(function() util.math.lineAngle(1) end)
+        lu.assertError(function() util.math.lineAngle(1, '2') end)
+        lu.assertError(function() util.math.lineAngle(1, 2, '3') end)
+        lu.assertError(function() util.math.lineAngle(1, 2, 3) end)
+        lu.assertError(function() util.math.lineAngle(1, 2, 3, '4') end)
+    end,
 }

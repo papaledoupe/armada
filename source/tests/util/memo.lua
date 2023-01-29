@@ -83,4 +83,16 @@ TestMemo = {
         lu.assertEquals(calls, 3)
     end,
 
+    testMemoWithMultipleReturnValues = function()
+        local memoized = util.memo(function() return 1, 2 end)
+
+        local x, y = memoized()
+        lu.assertEquals(x, 1)
+        lu.assertEquals(y, 2)
+
+        x, y = memoized()
+        lu.assertEquals(x, 1)
+        lu.assertEquals(y, 2)
+    end,
+
 }

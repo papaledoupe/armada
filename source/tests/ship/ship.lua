@@ -174,4 +174,26 @@ TestShip = {
         lu.assertEquals(x, 10)
         lu.assertEquals(y, 10)
     end,
+
+    testGetSponsonsInRangeOf = function()
+        local range = SponsonWeapon:standardRanges(10, 10)
+        local fwdSponson = SponsonWeapon.new{orientation = 0,   ranges = range, spread = 90}
+        local aftSponson = SponsonWeapon.new{orientation = 180, ranges = range, spread = 90}
+        local ship = exampleShip{
+            sponsons = {fwdSponson, aftSponson},
+            x = 50,
+            y = 50,
+            bearing = 0,
+        }
+
+        lu.assertEquals(ship:getSponsonsInRangeOf(0, 0), {})
+        lu.assertEquals(ship:getSponsonsInRangeOf(60, 60), {})
+        lu.assertEquals(ship:getSponsonsInRangeOf(40, 40), {})
+        lu.assertEquals(ship:getSponsonsInRangeOf(50, 40), {fwdSponson})
+        lu.assertEquals(ship:getSponsonsInRangeOf(50, 45), {fwdSponson})
+        lu.assertEquals(ship:getSponsonsInRangeOf(55, 50), {})
+        lu.assertEquals(ship:getSponsonsInRangeOf(50, 60), {aftSponson})
+        lu.assertEquals(ship:getSponsonsInRangeOf(50, 55), {aftSponson})
+        lu.assertEquals(ship:getSponsonsInRangeOf(45, 50), {})
+    end,
 }

@@ -115,19 +115,11 @@ class "AimCommand" extends "ShipCommand" {
         end,
 
         getCurrentOrientation = function(self)
-            return self.ship:getSponson(self.sponsonIdx).orientation
+            return self.ship:getSponson(self.sponsonIdx).orientation + self.ship.movement.bearing
         end,
 
         getOrientationRange = function(self)
             return self.ship:getSponsonOrientationRange(self.sponsonIdx)
-        end,
-
-        getRange = function(self)
-            return self.ship:getSponson(self.sponsonIdx).range
-        end,
-
-        getSpread = function(self)
-            return self.ship:getSponson(self.sponsonIdx).spread
         end,
 
         getFrom = function(self)

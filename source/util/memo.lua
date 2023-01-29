@@ -27,10 +27,10 @@ util.memo = function(f, opts)
             end
         end
         if not diff then
-            return memo
+            return table.unpack(memo)
         end
         lastKeys = newKeys
-        memo = f(table.unpack(newArgs))
-        return memo
+        memo = table.pack(f(table.unpack(newArgs)))
+        return table.unpack(memo)
     end
 end

@@ -56,7 +56,7 @@ util.gfx = {
         typeGuard('function', f)
 
         pg.pushContext(img)
-        f(pg)
+        f(pg, img)
         pg.popContext(img)
         return img
     end,

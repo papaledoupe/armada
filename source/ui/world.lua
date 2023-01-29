@@ -17,6 +17,7 @@ import 'util/oo'
 local typeGuard <const> = util.oo.typeGuard
 local typeGuardElements <const> = util.oo.typeGuardElements
 local instanceOf <const> = util.oo.instanceOf
+import 'ui/ship'
 
 local playdateScreenW <const> = 400
 local playdateScreenH <const> = 240
@@ -31,7 +32,12 @@ class "WorldUI" extends "UILifecycle" {
         __construct = function(self, args)
             args = args or {}
             self.controller = typeGuard('UIController', args.controller or error('controller required'))
-            self.game = typeGuard('GameState', args.game or error('game required'))
+            
+            local game = typeGuard('GameState', args.game or error('game required'))
+            self.ships = {}
+            for _, ship in ipairs(game.ships) do
+                table.insert(self.ships, ShipUI.new{ship = ship})
+            end
             
             local commandWidget = CommandWidget.new()
             self.commandWidget = commandWidget
@@ -40,7 +46,6 @@ class "WorldUI" extends "UILifecycle" {
 
             self.taskQueue = TaskQueue.new()
 
-            local game = self.game
             local controller = self.controller
             self.fsm = FiniteStateMachine.new{
                 --log = true,
@@ -124,7 +129,7 @@ class "WorldUI" extends "UILifecycle" {
                 stateCallbacks = {
                     ['CHOOSE_COMMAND'] = {
                         enter = function(fsm)
-                            local activeShip = self:getActiveShip()
+                            local activeShip = self:getActiveShip().ship
                             self:centerCameraOn(v(activeShip.movement.x, activeShip.movement.y))
 
                             commandWidget:open(activeShip)
@@ -185,7 +190,7 @@ class "WorldUI" extends "UILifecycle" {
                     },
                     ['SIMULATING'] = {
                         enter = function()
-                            local activeShip = self:getActiveShip()
+                            local activeShip = self:getActiveShip().ship
                             self:centerCameraOn(v(activeShip.movement.x, activeShip.movement.y))
                         end,
                         leave = function()
@@ -195,9 +200,9 @@ class "WorldUI" extends "UILifecycle" {
                     ['STEER_INPUT'] = {
                         enter = function(fsm)
                             local ship = self:getActiveShip()
-                            local cmd = typeGuard('SteerCommand', ship:currentCommand())
+                            local cmd = typeGuard('SteerCommand', ship.ship:currentCommand())
                             local min, max = cmd:getTargetBearingRange()
-                            local args = {target = self:getActiveShip().movement.bearing}
+                            local args = {target = ship.ship.movement.bearing}
 
                             controller:getOverlay():enable{
                                 OverlayUIAction.new{
@@ -209,7 +214,8 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        self:renderProjection(ship, ship.movement.velocity, args.target)
+                                        
+                                        ship:renderProjection(ship.ship.movement.velocity, args.target)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -224,15 +230,15 @@ class "WorldUI" extends "UILifecycle" {
                         end,
                         leave = function()
                             controller:getOverlay():disable()
-                            self:clearProjection()
+                            self:getActiveShip():clearProjection()
                         end,
                     },
                     ['ACCELERATE_INPUT'] = {
                         enter = function(fsm)
                             local ship = self:getActiveShip()
-                            local cmd = typeGuard('AccelerateCommand', ship:currentCommand())
+                            local cmd = typeGuard('AccelerateCommand', ship.ship:currentCommand())
                             local min, max = cmd:getTargetVelocityRange()
-                            local args = {target = self:getActiveShip().movement.velocity}
+                            local args = {target = ship.ship.movement.velocity}
 
                             controller:getOverlay():enable{
                                 OverlayUIAction.new{
@@ -244,7 +250,7 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        self:renderProjection(ship, args.target, ship.movement.bearing)
+                                        ship:renderProjection(args.target, ship.ship.movement.bearing)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -259,15 +265,15 @@ class "WorldUI" extends "UILifecycle" {
                         end,
                         leave = function()
                             controller:getOverlay():disable()
-                            self:clearProjection()
+                            self:getActiveShip():clearProjection()
                         end,
                     },
                     ['DECELERATE_INPUT'] = {
                         enter = function(fsm)
                             local ship = self:getActiveShip()
-                            local cmd = typeGuard('DecelerateCommand', ship:currentCommand())
+                            local cmd = typeGuard('DecelerateCommand', ship.ship:currentCommand())
                             local min, max = cmd:getTargetVelocityRange()
-                            local args = {target = self:getActiveShip().movement.velocity}
+                            local args = {target = ship.ship.movement.velocity}
 
                             controller:getOverlay():enable{
                                 OverlayUIAction.new{
@@ -279,7 +285,7 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        self:renderProjection(ship, args.target, ship.movement.bearing)
+                                        ship:renderProjection(args.target, ship.ship.movement.bearing)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -294,17 +300,17 @@ class "WorldUI" extends "UILifecycle" {
                         end,
                         leave = function()
                             controller:getOverlay():disable()
-                            self:clearProjection()
+                            self:getActiveShip():clearProjection()
                         end,
                     },
                     ['AIM_INPUT'] = {
                         enter = function(fsm)
                             local ship = self:getActiveShip()
-                            local cmd = typeGuard('AimCommand', ship:currentCommand())
+                            local cmd = typeGuard('AimCommand', ship.ship:currentCommand())
                             local min, max = cmd:getOrientationRange()
                             local args = {target = cmd:getCurrentOrientation()}
                             local aimX, aimY = cmd:getFrom()
-                            local aimFrom = v(aimX - ship.movement.x, aimY - ship.movement.y)
+                            local aimFrom = v(aimX - ship.ship.movement.x, aimY - ship.ship.movement.y)
 
                             controller:getOverlay():enable{
                                 OverlayUIAction.new{
@@ -316,7 +322,7 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        self:renderAim(aimFrom, args.target, cmd:getRange(), cmd:getSpread())
+                                        ship:activateSponson(1, args.target)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -331,7 +337,7 @@ class "WorldUI" extends "UILifecycle" {
                         end,
                         leave = function()
                             controller:getOverlay():disable()
-                            self:clearProjection()
+                            self:getActiveShip():deactivateSponson()
                         end,
                     },
                 },
@@ -360,7 +366,7 @@ class "WorldUI" extends "UILifecycle" {
             self.taskQueue:update()
 
             if self.fsm.state == 'SIMULATING' then
-                local activeShip = self:getActiveShip()
+                local activeShip = self:getActiveShip().ship
                 local args = self:consumeNextCommandArgs()
                 if activeShip:update(DeltaTime.getSeconds(), args) then
                     if activeShip:needsCommand() then
@@ -372,8 +378,8 @@ class "WorldUI" extends "UILifecycle" {
             end
 
             util.gfx.withDrawOffset(-self.camera.x, -self.camera.y, function(g)
-                for _, ship in ipairs(self.game.ships) do
-                    self:renderShipImg():drawWithTransform(geom.affineTransform.new():rotatedBy(ship.movement.bearing), ship.movement.x, ship.movement.y)
+                for _, ship in ipairs(self.ships) do
+                    ship:draw()
                 end
                 util.gfx.withImageDrawMode(g.kDrawModeNXOR, function(g)
                     if self.shipProjectionImg ~= nil then
@@ -388,12 +394,12 @@ class "WorldUI" extends "UILifecycle" {
         -- end UILifecycle
 
         getActiveShip = function(self)
-            return self.game.ships[self.activeShipIdx]
+            return self.ships[self.activeShipIdx]
         end,
 
         setActiveShip = function(self, idx)
             idx = typeGuard('number', idx or 1)
-            self.activeShipIdx = cycle(idx, 1, #self.game.ships)
+            self.activeShipIdx = cycle(idx, 1, #self.ships)
         end,
 
         nextShip = function(self)
@@ -442,51 +448,17 @@ class "WorldUI" extends "UILifecycle" {
         setNextCommandArgs = function(self, args)
             self.nextCommandArgs = typeGuard('table', args)
         end,
-
-        clearProjection = function(self)
-            self.shipProjectionImg = nil
-        end,
-
-        renderAim = function(self, from, orientation, range, spread)
-            self.shipProjectionImg = util.gfx.withImageContext(gfx.image.new(playdateScreenW*2, playdateScreenH*2), function(g)
-                util.gfx.withDrawOffset(playdateScreenW + from.x, playdateScreenH + from.y, function(g)
-                    local min, max = orientation - spread/2, orientation + spread/2
-                    g.drawArc(0, 0, range, min, max)
-                    g.drawLine(0, 0, range * math.sin(math.rad(min)), -range * math.cos(math.rad(min)))
-                    g.drawLine(0, 0, range * math.sin(math.rad(max)), -range * math.cos(math.rad(max)))
-                end)
-            end)
-        end,
-
-        renderProjection = function(self, ship, targetVelocity, targetBearing)
-            local stepsPerMeter = 0.1
-            local dotRadius = 2
-            local minSteps = 2
-            local maxSteps = 20
-
-            local avgVelocity = ((targetVelocity + ship.movement.velocity)/2)
-            local approxDistance = avgVelocity * ShipCommand.durationSeconds
-            local steps = clamp(math.ceil(approxDistance * stepsPerMeter), minSteps, maxSteps)
-            self.shipProjectionImg = util.gfx.withImageContext(gfx.image.new(playdateScreenW*2, playdateScreenH*2), function(g)
-                g.fillCircleAtPoint(playdateScreenW, playdateScreenH, dotRadius)
-                for _, projection in ipairs(ship:projectMovement{targetVelocity = targetVelocity, targetBearing = targetBearing, steps = steps}) do
-                    g.fillCircleAtPoint(playdateScreenW + projection.x - ship.movement.x, playdateScreenH + projection.y - ship.movement.y, dotRadius)
-                end
-            end)
-        end,
     },
     private {
         controller = null, -- UIController
         game = null, -- GameState
+        ships = {}, -- ShipUI[]
         fsm = null, -- FiniteStateMachine
         taskQueue = null, -- TaskQueue
         camera = null, -- geom.vector2D
         commandWidget = null, -- CommandWidget
 
         activeShipIdx = 0,
-
-        -- @see renderProjection. center of the image is current ship position.
-        shipProjectionImg = null, -- gfx.image|nil
 
         nextCommandArgs = null, -- table|nil
 
@@ -496,21 +468,8 @@ class "WorldUI" extends "UILifecycle" {
             return args
         end,
 
-        renderShipImg = memo(function(self)
-            local length = 39
-            local width = 15
-            local prowLength = 8
-            return util.gfx.withImageContext(gfx.image.new(width, length), function(g)
-                g.fillTriangle(
-                    0, prowLength,
-                    width, prowLength,
-                    width / 2, 0)
-                g.fillRect(0, prowLength, width, length - prowLength)
-            end)
-        end),
-
         transitionToCommandInput = function(self)
-            local requiredCommand = self:getActiveShip():currentCommand()
+            local requiredCommand = self:getActiveShip().ship:currentCommand()
             if instanceOf('PassCommand', requiredCommand) then
                 self:setNextCommandArgs({})
             elseif instanceOf('SteerCommand', requiredCommand) then
@@ -527,7 +486,7 @@ class "WorldUI" extends "UILifecycle" {
         end,
 
         continueSimulationOrFinish = function(self)
-            if self.activeShipIdx < #self.game.ships then
+            if self.activeShipIdx < #self.ships then
                 self.fsm:mustTrigger('moreShipsToSimulate')
             else
                 self.fsm:mustTrigger('allShipsSimulated')

@@ -15,11 +15,11 @@ local game = GameState.new{
             velocity = 20,
             sponsons = {
                 SponsonWeapon.new{
-                    minOrientation = -45,
-                    maxOrientation = 45,
-                    spread = 45,
-                    range = 50,
-                    mountPosY = -20,
+                    mountPosX = 22,
+                    minOrientation = 50,
+                    maxOrientation = 110,
+                    spread = 70,
+                    ranges = SponsonWeapon:standardRanges(10, 160),
                 },
             },
         },
@@ -32,19 +32,7 @@ local game = GameState.new{
         },
     }
 }
--- local ui = UIStackController.new{game = game}
-
--- TEMP
-import 'ui/damage'
-local overlay = OverlayUI.new{game = game}
-local ui = DamageCheckUI.new{
-    overlay = overlay,
-    check = DamageCheck.new{maxDamage = 10},
-    onComplete = function(check)
-        print('score ', check.score, 'damage', check:currentDamage())
-    end,
-}
--- TEMP END
+local ui = UIStackController.new{game = game}
 
 function playdate.update()
     gfx.clear(gfx.kColorWhite)
@@ -53,5 +41,4 @@ function playdate.update()
     playdate.timer.updateTimers()
  
     ui:update()
-    overlay:update()
 end

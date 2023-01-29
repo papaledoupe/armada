@@ -141,3 +141,12 @@ function util.oo.typeGuardElements(typeOrClass, table)
     return table
 end
 
+function util.oo.typeGuardKeysValues(keyTypeOrClass, valueTypeOrClass, table)
+    util.oo.typeGuard('table', table)
+    for k, v in pairs(table) do
+        util.oo.typeGuard(keyTypeOrClass, k)
+        util.oo.typeGuard(valueTypeOrClass, v)
+    end
+    return table
+end
+

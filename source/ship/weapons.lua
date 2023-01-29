@@ -1,5 +1,8 @@
 import 'util/oo'
 local typeGuard <const> = util.oo.typeGuard
+local typeGuardKeysValues <const> = util.oo.typeGuardKeysValues
+import 'util/memo'
+local memo <const> = util.memo
 
 -- a weapon with rotational freedom
 -- "range" and "spread" define a sector shaped target area
@@ -8,6 +11,15 @@ local typeGuard <const> = util.oo.typeGuard
 -- "mount pos" is relative position of weapon on the thing it's mounted on
 class "SponsonWeapon" {
     public {
+        static {
+            standardRanges = function(self, maxDamage, maxRange)
+                return {
+                    [math.ceil(maxRange * .75)] = maxDamage,
+                    [maxRange] = math.ceil(maxDamage/2),
+                }
+            end,
+        },
+
         __construct = function(self, args)
             args = args or {}
 
@@ -23,15 +35,19 @@ class "SponsonWeapon" {
             end
             self:setOrientation(orientation)
             
-            self.range = typeGuard('number', args.range or error('range required'))
+            self.ranges = typeGuardKeysValues('number', 'number', args.ranges or error('ranges required'))
             self.spread = typeGuard('number', args.spread or error('spread required'))
             self.mountPosX = typeGuard('number', args.mountPosX or 0)
             self.mountPosY = typeGuard('number', args.mountPosY or 0)
         end,
 
-        getFullSpread = function(self)
+        getFullSpread = memo(function(self)
             return self.minOrientation - self.spread/2, self.maxOrientation + self.spread/2
-        end,
+        end),
+
+        getCurrentSpread = memo(function(self)
+            return self.orientation - self.spread/2, self.orientation + self.spread/2
+        end),
 
         setOrientation = function(self, o)
             typeGuard('number', o)
@@ -42,11 +58,33 @@ class "SponsonWeapon" {
             end
             self.orientation = o
         end,
+
+        getMaxRange = memo(function(self)
+            local max = 0
+            for rng, dmg in pairs(self.ranges) do
+                max = math.max(max, rng)
+            end
+            return max
+        end),
+
+        getDamageAtRange = function(self, r)
+            typeGuard('number', r)
+            if r < 0 then
+                return 0
+            end
+            local max = 0
+            for rng, dmg in pairs(self.ranges) do
+                if r <= rng then
+                    max = math.max(max, dmg)
+                end
+            end
+            return max
+        end,
     },
     private {
         getter {
             orientation = 0,
-            range = 0,
+            ranges = {},
             spread = 0,
             mountPosX = 0,
             mountPosY = 0,
