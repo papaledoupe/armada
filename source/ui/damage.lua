@@ -39,12 +39,17 @@ local progressBarZeroRegionWidth <const> = 140
 local progressBarBustRegionWidth <const> = 70
 local progressBarDamageRegionWidth <const> = progressBarSize.width - progressBarZeroRegionWidth - progressBarBustRegionWidth
 
+local bgImage <const> = util.gfx.withImageContext(gfx.image.new(playdateScreenW, playdateScreenH), function(g)
+    util.gfx.withShade(4, function(g) g.fillRect(0, 0, playdateScreenW, playdateScreenH) end)
+    util.gfx.withColor(g.kColorWhite, function(g) g.fillRect(0, 0, playdateScreenW, progressBarSize.height + progressBarOffset.y * 2) end)
+end)
+
 class "DamageCheckUI" {
     public {
         __construct = function(self, args)
             self.check = typeGuard('DamageCheck', args.check or error('check required'))
             local overlay = typeGuard('OverlayUI', args.overlay or error('overlay required'))
-            local onComplete = typeGuard('function', args.onComplete or function(dmgCheck) end)
+            local onComplete = typeGuard('function', args.onComplete or function(check) end)
             
             self.taskQueue = TaskQueue.new()
 
@@ -59,8 +64,10 @@ class "DamageCheckUI" {
                     StateTransition.new{from = 'AWAIT_INPUT', event = 'draw', to = 'DRAW'},
                     StateTransition.new{from = 'DRAW', event = 'drawn', to = 'AWAIT_INPUT'},
                     StateTransition.new{from = 'DRAW', event = 'maxScore', to = 'MAX_SCORE'},
+                    StateTransition.new{from = 'DRAW', event = 'bust', to = 'BUST'},
                     StateTransition.new{from = 'AWAIT_INPUT', event = 'stick', to = 'COMPLETE'},
                     StateTransition.new{from = 'MAX_SCORE', event = 'stick', to = 'COMPLETE'},
+                    StateTransition.new{from = 'BUST', event = 'accept', to = 'COMPLETE'},
                 },
                 stateCallbacks = {
                     ['DRAW'] = {
@@ -118,7 +125,9 @@ class "DamageCheckUI" {
                             taskQueue:submit(TaskQueueTask.new{
                                 kind = 'finishedDrawing',
                                 run = function()
-                                    if check.score == check.maxScore then
+                                    if check.score > check.maxScore then
+                                        fsm:mustTrigger('bust')
+                                    elseif check.score == check.maxScore then
                                         fsm:mustTrigger('maxScore')
                                     else
                                         fsm:mustTrigger('drawn')
@@ -161,16 +170,30 @@ class "DamageCheckUI" {
                             }
                         end,
                     },
+                    ['BUST'] = {
+                        enter = function(fsm)
+                            overlay:enable{
+                                OverlayUIAction.new{
+                                    button = 'b',
+                                    label = 'Continue',
+                                    callback = function()
+                                        fsm:mustTrigger('accept')
+                                    end,
+                                },
+                            }
+                        end,
+                    },
                     ['COMPLETE'] = {
                         enter = function(fsm)
                             onComplete(check)
                         end,
-                    },
+                    }
                 }
             }
         end,
 
         update = function(self)
+            bgImage:draw(0, 0)
             self.cardsImage:draw(0, 0)
             self.taskQueue:update()
 
@@ -264,6 +287,7 @@ class "DamageCheckUI" {
         cardsImage = null, -- gfx.image (image of previously drawn cards no longer being animated)
         getter {
             progress = 0,
+            complete = false,
         }
     }
 }

@@ -74,4 +74,20 @@ TestSponsonWeapon = {
         lu.assertEquals(sw:getDamageAtRange(0), 10)
         lu.assertEquals(sw:getDamageAtRange(-10), 0)
     end,
+
+    testSetTargetOrientation = function()
+        local sw = SponsonWeapon.new{orientation = 90, ranges = SponsonWeapon:standardRanges(10, 100), spread = 20}
+
+        lu.assertEquals(sw.orientation, 90)
+        sw:setTargetOrientation(100)
+        lu.assertEquals(sw.orientation, 90)
+        sw:update(ShipCommand.durationSeconds / 10)
+        lu.assertEquals(sw.orientation, 91)
+        sw:update(5 * ShipCommand.durationSeconds / 10)
+        lu.assertEquals(sw.orientation, 96)
+        sw:update(5 * ShipCommand.durationSeconds / 10)
+        lu.assertEquals(sw.orientation, 100)
+        sw:update(5 * ShipCommand.durationSeconds / 10)
+        lu.assertEquals(sw.orientation, 100)
+    end,
 }

@@ -18,6 +18,7 @@ local typeGuard <const> = util.oo.typeGuard
 local typeGuardElements <const> = util.oo.typeGuardElements
 local instanceOf <const> = util.oo.instanceOf
 import 'ui/ship'
+import 'ui/damage'
 
 local playdateScreenW <const> = 400
 local playdateScreenH <const> = 240
@@ -39,8 +40,8 @@ class "WorldUI" extends "UILifecycle" {
                 table.insert(self.ships, ShipUI.new{ship = ship})
             end
             
-            local commandWidget = CommandWidget.new()
-            self.commandWidget = commandWidget
+            local commandSelector = CommandSelector.new()
+            self.commandSelector = commandSelector
 
             self:setActiveShip(args.activeShipIdx or 1)
 
@@ -120,11 +121,16 @@ class "WorldUI" extends "UILifecycle" {
                     StateTransition.new{
                         from = 'SIMULATING',
                         event = 'allShipsSimulated',
+                        to = 'FIRING',
+                    },
+                    StateTransition.new{
+                        from = 'FIRING',
+                        event = 'firingComplete',
                         to = 'CHOOSE_COMMAND',
                         callback = function()
                             self:setActiveShip(1)
                         end,
-                    },
+                    }
                 },
                 stateCallbacks = {
                     ['CHOOSE_COMMAND'] = {
@@ -132,9 +138,9 @@ class "WorldUI" extends "UILifecycle" {
                             local activeShip = self:getActiveShip().ship
                             self:centerCameraOn(v(activeShip.movement.x, activeShip.movement.y))
 
-                            commandWidget:open(activeShip)
+                            commandSelector:open(activeShip)
                             local availableCommands = activeShip:availableCommands()
-                            local commandIdx = commandWidget.selectedIndex
+                            local commandIdx = commandSelector.selectedIndex
                             
                             controller:getOverlay():enable{
                                 OverlayUIAction.new{
@@ -142,7 +148,7 @@ class "WorldUI" extends "UILifecycle" {
                                     buttons = {'left', 'right'},
                                     callback = function(_, btn)
                                         commandIdx = clamp(commandIdx + (btn == 'left' and -1 or 1), 1, #availableCommands)
-                                        commandWidget:setSelectedIndex(commandIdx)
+                                        commandSelector:setSelectedIndex(commandIdx)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -185,7 +191,7 @@ class "WorldUI" extends "UILifecycle" {
                         end,
                         leave = function()
                             controller:getOverlay():enable{}
-                            commandWidget:close()
+                            commandSelector:close()
                         end,
                     },
                     ['SIMULATING'] = {
@@ -214,7 +220,7 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        
+
                                         ship:renderProjection(ship.ship.movement.velocity, args.target)
                                     end,
                                 },
@@ -322,7 +328,7 @@ class "WorldUI" extends "UILifecycle" {
                                             min,
                                             max
                                         )
-                                        ship:activateSponson(1, args.target)
+                                        ship:activateSponson(cmd.sponsonIdx, args.target)
                                     end,
                                 },
                                 OverlayUIAction.new{
@@ -340,6 +346,36 @@ class "WorldUI" extends "UILifecycle" {
                             self:getActiveShip():deactivateSponson()
                         end,
                     },
+                    ['FIRING'] = {
+                        enter = function(fsm)
+                            controller:getOverlay():disable()
+                            local attacks = {}
+                            for _, ship in ipairs(self.ships) do
+                                for _, target in ipairs(self.ships) do
+                                    local sponsons = ship.ship:getSponsonsInRangeOf(target.ship.movement.x, target.ship.movement.y)
+                                    for _, sponson in ipairs(sponsons) do
+                                        table.insert(attacks, {source = ship, target = target, sponson = sponson})
+                                    end
+                                end
+                            end
+
+                            local lastSourceShip = self:getActiveShip()
+                            for _, attack in ipairs(attacks) do
+                                if attack.source ~= lastSourceShip then
+                                    self:centerCameraOn(v(attack.source.ship.movement.x, attack.source.ship.movement.y))
+                                end
+                                lastSourceShip = attack.source
+                                self:resolveAttack(attack.source, attack.target, attack.sponson)
+                            end
+                            self.taskQueue:submit(TaskQueueTask.new{
+                                kind = 'triggerFiringComplete',
+                                run = function()
+                                    fsm:mustTrigger('firingComplete')
+                                    return true
+                                end,
+                            })
+                        end,
+                    }
                 },
             }
         end,
@@ -381,14 +417,13 @@ class "WorldUI" extends "UILifecycle" {
                 for _, ship in ipairs(self.ships) do
                     ship:draw()
                 end
-                util.gfx.withImageDrawMode(g.kDrawModeNXOR, function(g)
-                    if self.shipProjectionImg ~= nil then
-                        self.shipProjectionImg:drawCentered(self:getActiveShip().movement.x, self:getActiveShip().movement.y)
-                    end
-                end)
             end)
 
-            self.commandWidget:update()
+            self.commandSelector:update()
+
+            if self.damageCheck ~= nil then
+                self.damageCheck:update()
+            end
         end,
 
         -- end UILifecycle
@@ -448,6 +483,32 @@ class "WorldUI" extends "UILifecycle" {
         setNextCommandArgs = function(self, args)
             self.nextCommandArgs = typeGuard('table', args)
         end,
+
+        resolveAttack = function(self, attacker, defender, sponson)
+            -- TODO find maxDamage based on range
+            -- TODO apply damage
+
+            local complete = false
+            self.damageCheck = DamageCheckUI.new{
+                check = DamageCheck.new{maxDamage = 10},
+                overlay = self.controller:getOverlay(),
+                onComplete = function(chk)
+                    print('check complete', chk)
+                    complete = true
+                    self:closeDamageCheck()
+                end,
+            }
+            self.taskQueue:submit(TaskQueueTask.new{
+                kind = 'resolveAttack',
+                run = function()
+                    return complete
+                end,
+            })
+        end,
+
+        closeDamageCheck = function(self)
+            self.damageCheck = nil
+        end,
     },
     private {
         controller = null, -- UIController
@@ -456,7 +517,8 @@ class "WorldUI" extends "UILifecycle" {
         fsm = null, -- FiniteStateMachine
         taskQueue = null, -- TaskQueue
         camera = null, -- geom.vector2D
-        commandWidget = null, -- CommandWidget
+        commandSelector = null, -- CommandSelector
+        damageCheck = null, -- DamageCheckUI|nil
 
         activeShipIdx = 0,
 
@@ -495,14 +557,14 @@ class "WorldUI" extends "UILifecycle" {
     }
 }
 
-class "CommandWidget" {
+class "CommandSelector" {
     public {
         static {
-            boxSize = 25,
-            boxMargin = 2,
-            boxRadius = 2,
-            distanceFromCenterY = 20,
-            scrollDurationMs = 200,
+            boxSize = 28,
+            boxMargin = 3,
+            boxRadius = 3,
+            arrowHeight = 20,
+            arrowWidth = 10,
 
             icons = memo(function() 
                 local icons = {}
@@ -514,12 +576,25 @@ class "CommandWidget" {
                 end
                 return icons
             end),
-        },
 
-        __construct = function(self, args)
-            args = args or {}
-            self.taskQueue = TaskQueue.new()
-        end,
+            drawBox = function(self, cmdT, offsetX, offsetY, inverted)
+                inverted = inverted or false
+                util.gfx.withColor(inverted and gfx.kColorBlack or gfx.kColorWhite, function(g)
+                    g.fillRoundRect(offsetX, offsetY, self.boxSize, self.boxSize, self.boxRadius)
+                end)
+                gfx.drawRoundRect(offsetX, offsetY, self.boxSize, self.boxSize, self.boxRadius)
+                if cmdT ~= nil then
+                    util.gfx.withImageDrawMode(inverted and gfx.kDrawModeInverted or gfx.kDrawModeCopy, function(g)
+                        CommandSelector:icons()[cmdT]:drawCentered(offsetX + self.boxSize/2, offsetY + self.boxSize/2)
+                    end)
+                end
+            end,
+
+            drawArrow = function(self, offsetX, offsetY)
+                local x1, y1 = offsetX, offsetY + math.ceil((self.boxSize - self.arrowHeight)/2)
+                gfx.fillTriangle(x1, y1, x1, y1 + self.arrowHeight, x1 + self.arrowWidth, y1 + math.ceil(self.arrowHeight/2))
+            end,
+        },
 
         open = function(self, ship)
             typeGuard('Ship', ship)
@@ -528,14 +603,12 @@ class "CommandWidget" {
             end
             self.ship = ship
             self.cmds = ship:availableCommands()
-            self.selectedIndex = math.min(self.selectedIndex, #ship:availableCommands())
-            self.scroll = self.selectedIndex
+            self.selectedIndex = math.min(self.selectedIndex, #self.cmds)
         end,
 
         close = function(self)
             self.ship = nil
             self.cmds = {}
-            self.taskQueue:cancelAll()
         end,
 
         isOpen = function(self)
@@ -544,18 +617,6 @@ class "CommandWidget" {
 
         setSelectedIndex = function(self, idx)
             self.selectedIndex = idx
-            self.taskQueue:cancelTasksOfKind('scroll')
-            self.taskQueue:submit(TaskQueueTask.new{
-                kind = 'scroll',
-                initialState = {},
-                run = function(state)
-                    if state.timer == nil then
-                        state.timer = Timer.new(CommandWidget.scrollDurationMs, self.scroll, idx)
-                    end
-                    self:setScroll(state.timer.value)
-                    return state.timer.timeLeft == 0
-                end,
-            })
         end,
 
         setScroll = function(self, scroll)
@@ -567,8 +628,6 @@ class "CommandWidget" {
                 return
             end
 
-            self.taskQueue:update()
-
             local img = self:getImage()
             img:drawCentered(playdateScreenW/2, (playdateScreenH - img.height)/2)
         end,
@@ -579,8 +638,6 @@ class "CommandWidget" {
         },
         ship = null, -- Ship|nil
         cmds = {}, -- ShipCommand[] cached as ship:availableCommands() expensive to call every frame
-        taskQueue = null, -- TaskQueue
-        scroll = 1, -- non-integer, in index units (i.e. 1.5 is half way between first and second option)
 
         getImage = memo(function(self)
             if not self:isOpen() then
@@ -590,41 +647,29 @@ class "CommandWidget" {
             local imgH = playdateScreenH/2
             
             return util.gfx.withImageContext(gfx.image.new(imgW, imgH), function(g)
-                local drawBox = function(cmdT, offsetX, offsetY)
-                    util.gfx.withColor(g.kColorWhite, function(g)
-                        g.fillRoundRect(offsetX, offsetY, CommandWidget.boxSize, CommandWidget.boxSize, CommandWidget.boxRadius)
-                    end)
-                    g.drawRoundRect(offsetX, offsetY, CommandWidget.boxSize, CommandWidget.boxSize, CommandWidget.boxRadius)
-                    if cmdT ~= nil then
-                        CommandWidget:icons()[cmdT]:drawCentered(offsetX + CommandWidget.boxSize/2, offsetY + CommandWidget.boxSize/2)
+                local currentX = self.boxMargin
+                if self.ship:needsCommand() then
+                    for idx, cmd in ipairs(self.cmds) do
+                        local offsetY = self.boxMargin
+                        self:drawBox(cmd:getType(), currentX, self.boxMargin, idx == self.selectedIndex)
+                        currentX = currentX + (self.boxSize + self.boxMargin)
                     end
                 end
 
-                local centerX = (imgW - CommandWidget.boxSize)/2
-                local boxSpacing = CommandWidget.boxSize + CommandWidget.boxMargin
-                local row = 1
-                local rowOffsetY = function()
-                    return imgH - CommandWidget.distanceFromCenterY - boxSpacing*row
-                end
-                if self.ship:needsCommand() then
-                    for idx, cmd in ipairs(self.cmds) do
-                        local offsetX = centerX + (idx - self.scroll) * boxSpacing
-                        drawBox(cmd:getType(), offsetX, rowOffsetY())
+                for i = 1, self.ship.stats.inertia do
+                    if i > 1 or self.ship:needsCommand() then
+                        self:drawArrow(currentX, self.boxMargin)
+                        currentX = currentX + (self.arrowWidth + self.boxMargin)
                     end
-                    row += 1
-                end
-                for i = self.ship.stats.inertia - (self.ship:needsCommand() and 1 or 0), 1, -1 do
+
                     local cmd = self.ship.commands[i]
-                    drawBox(cmd ~= nil and cmd:getType() or nil, centerX, rowOffsetY())
-                    row += 1
+                    self:drawBox(cmd ~= nil and cmd:getType() or nil, currentX, self.boxMargin)
+                    currentX = currentX + (self.boxSize + self.boxMargin)
                 end
+
             end)
         end, {extractKeys = function(self)
-            local cmdTypes = ''
-            for _, cmd in ipairs(self.ship.commands) do
-                cmdTypes = cmdTypes .. '.' .. cmd:getType()
-            end
-            return {self.selectedIndex, self.scroll, ship, self:isOpen()}
+            return {self.selectedIndex, self.scroll, self.ship, self:isOpen()}
         end})
     }
 }

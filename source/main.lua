@@ -21,6 +21,13 @@ local game = GameState.new{
                     spread = 70,
                     ranges = SponsonWeapon:standardRanges(10, 160),
                 },
+                SponsonWeapon.new{
+                    mountPosX = -22,
+                    minOrientation = -110,
+                    maxOrientation = -50,
+                    spread = 70,
+                    ranges = SponsonWeapon:standardRanges(10, 160),
+                },
             },
         },
         Ship.new{

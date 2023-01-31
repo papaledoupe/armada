@@ -57,6 +57,8 @@ class "SponsonWeapon" {
                 })
             end
             self.orientation = o
+            self.targetOrientation = o
+            self.startOrientation = o
         end,
 
         getMaxRange = memo(function(self)
@@ -80,10 +82,27 @@ class "SponsonWeapon" {
             end
             return max
         end,
+
+        setTargetOrientation = function(self, o)
+            typeGuard('number', o)
+            self.targetOrientation = o
+            self.startOrientation = self.orientation
+        end,
+
+        update = function(self, dts)
+            if self.targetOrientation ~= self.orientation then
+                local db = dts * ((self.targetOrientation - self.startOrientation) / ShipCommand.durationSeconds)
+                self.orientation = self.orientation + db
+                if (db > 0 and self.orientation > self.targetOrientation) or (db < 0 and self.orientation < self.targetOrientation) then
+                    self.orientation = self.targetOrientation -- prevent overshot
+                end
+            end
+        end,
     },
     private {
         getter {
             orientation = 0,
+            targetOrientation = 0,
             ranges = {},
             spread = 0,
             mountPosX = 0,
@@ -91,5 +110,6 @@ class "SponsonWeapon" {
             minOrientation = 0,
             maxOrientation = 0,
         },
+        startOrientation = 0, -- orientation at time new targetOrientation was set
     }
 }

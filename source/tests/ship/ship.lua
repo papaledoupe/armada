@@ -196,4 +196,20 @@ TestShip = {
         lu.assertEquals(ship:getSponsonsInRangeOf(50, 55), {aftSponson})
         lu.assertEquals(ship:getSponsonsInRangeOf(45, 50), {})
     end,
+
+    testSetSponsonTargetOrientation = function()
+        local sponsonArg = nil
+        local ship = exampleShip{
+            sponsons = {classMock('SponsonWeapon', {setTargetOrientation = function(self, tgt) sponsonArg = tgt end})},
+            x = 0,
+            y = 0,
+            bearing = 90,
+        }
+
+        lu.assertErrorMsgContains('invalid sponson idx 0', function() ship:setSponsonTargetOrientation(0, 123) end)
+        lu.assertErrorMsgContains('invalid sponson idx 2', function() ship:setSponsonTargetOrientation(2, 123) end)
+
+        ship:setSponsonTargetOrientation(1, 123)
+        lu.assertEquals(123 - 90, sponsonArg) -- transforms to local coords, i.e., subtracts shop orientation
+    end,
 }

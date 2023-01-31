@@ -81,6 +81,11 @@ class "Ship" {
             self.movement:setTargetBearing(b)
         end,
 
+        setSponsonTargetOrientation = function(self, idx, target)
+            local sponson = self:getSponson(idx) or error('invalid sponson idx '..idx)
+            sponson:setTargetOrientation(target - self.movement.bearing)
+        end,
+
         -- provide a array of {x, y, bearing} positions representing motion on current trajectory, with the requested number of steps
         projectMovement = function(self, args)
             args = args or {}
@@ -131,6 +136,9 @@ class "Ship" {
             end
 
             self.movement:update(dts)
+            for _, sponson in ipairs(self.sponsons) do
+                sponson:update(dts)
+            end
 
             return false
         end,

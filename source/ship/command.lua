@@ -127,7 +127,7 @@ class "AimCommand" extends "ShipCommand" {
         end,
 
         execute = function(self, args)
-            -- TODO
+            self.ship:setSponsonTargetOrientation(self.sponsonIdx, typeGuard('number', args.target))
         end,
     },
     private {
